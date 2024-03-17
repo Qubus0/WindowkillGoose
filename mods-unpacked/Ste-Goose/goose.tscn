@@ -1,0 +1,83 @@
+[gd_scene load_steps=7 format=3 uid="uid://cc2671as7xdlu"]
+
+[ext_resource type="Script" path="res://mods-unpacked/Ste-Goose/goose.gd" id="1_n7kmw"]
+[ext_resource type="Texture2D" uid="uid://bt5v5lkjvuetb" path="res://src/icon.svg" id="2_p4opg"]
+[ext_resource type="Script" path="res://src/enemy/enemy.gd" id="2_v7may"]
+[ext_resource type="Texture2D" uid="uid://d17d3fga2oexf" path="res://src/2px.png" id="4_bueh6"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_xje5l"]
+radius = 19.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_uomjb"]
+radius = 48.0
+
+[node name="Goose" type="RigidBody2D"]
+can_sleep = false
+script = ExtResource("1_n7kmw")
+
+[node name="Enemy" type="Node" parent="."]
+script = ExtResource("2_v7may")
+health = 10.0
+
+[node name="Icon" type="Sprite2D" parent="."]
+scale = Vector2(0.375, 0.21875)
+texture = ExtResource("2_p4opg")
+
+[node name="collideShape" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_xje5l")
+
+[node name="Area2D" type="Area2D" parent="."]
+visible = false
+collision_layer = 64
+collision_mask = 48
+
+[node name="detectShape" type="CollisionShape2D" parent="Area2D"]
+shape = SubResource("CircleShape2D_uomjb")
+
+[node name="NeckPivot" type="Marker2D" parent="."]
+
+[node name="HeadPivot" type="Marker2D" parent="NeckPivot"]
+position = Vector2(24, -10)
+
+[node name="Head" type="Sprite2D" parent="NeckPivot/HeadPivot"]
+scale = Vector2(0.1875, 0.125)
+texture = ExtResource("2_p4opg")
+
+[node name="Beak" type="Sprite2D" parent="NeckPivot/HeadPivot"]
+position = Vector2(11, 3)
+scale = Vector2(0.109375, 0.0703126)
+texture = ExtResource("2_p4opg")
+
+[node name="Eyes" type="Marker2D" parent="NeckPivot/HeadPivot"]
+position = Vector2(4, -4)
+
+[node name="Eye" type="Sprite2D" parent="NeckPivot/HeadPivot/Eyes"]
+position = Vector2(0, -3)
+texture = ExtResource("4_bueh6")
+
+[node name="Eye2" type="Sprite2D" parent="NeckPivot/HeadPivot/Eyes"]
+position = Vector2(0, 3)
+texture = ExtResource("4_bueh6")
+
+[node name="FeetPivot" type="Marker2D" parent="."]
+position = Vector2(0, 22)
+rotation = -0.000358393
+
+[node name="Offset" type="Marker2D" parent="FeetPivot"]
+position = Vector2(10, 0)
+
+[node name="Left" type="Marker2D" parent="FeetPivot/Offset"]
+position = Vector2(0, -5)
+
+[node name="Foot" type="Sprite2D" parent="FeetPivot/Offset/Left"]
+top_level = true
+scale = Vector2(2, 2)
+texture = ExtResource("4_bueh6")
+
+[node name="Right" type="Marker2D" parent="FeetPivot/Offset"]
+position = Vector2(0, 5)
+
+[node name="Foot" type="Sprite2D" parent="FeetPivot/Offset/Right"]
+top_level = true
+scale = Vector2(2, 2)
+texture = ExtResource("4_bueh6")
