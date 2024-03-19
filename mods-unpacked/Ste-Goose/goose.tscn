@@ -19,10 +19,6 @@ script = ExtResource("1_n7kmw")
 script = ExtResource("2_v7may")
 health = 10.0
 
-[node name="Icon" type="Sprite2D" parent="."]
-scale = Vector2(0.375, 0.21875)
-texture = ExtResource("2_p4opg")
-
 [node name="collideShape" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_xje5l")
 
@@ -34,7 +30,13 @@ collision_mask = 48
 [node name="detectShape" type="CollisionShape2D" parent="Area2D"]
 shape = SubResource("CircleShape2D_uomjb")
 
+[node name="Body" type="Sprite2D" parent="."]
+position = Vector2(0, -7)
+scale = Vector2(0.375, 0.21875)
+texture = ExtResource("2_p4opg")
+
 [node name="NeckPivot" type="Marker2D" parent="."]
+position = Vector2(0, -7)
 
 [node name="HeadPivot" type="Marker2D" parent="NeckPivot"]
 position = Vector2(24, -10)
@@ -60,7 +62,7 @@ position = Vector2(0, 3)
 texture = ExtResource("4_bueh6")
 
 [node name="FeetPivot" type="Marker2D" parent="."]
-position = Vector2(0, 22)
+position = Vector2(0, 15)
 rotation = -0.000358393
 
 [node name="Offset" type="Marker2D" parent="FeetPivot"]

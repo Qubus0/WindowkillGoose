@@ -1,5 +1,6 @@
-#extends Node2D
 extends RigidBody2D
+#Utils.spawn(preload("res://mods-unpacked/Ste-Goose/goose.tscn"), get_global_mouse_position(), game_area)
+
 var args := {
 	index = 0,
 }
@@ -51,9 +52,13 @@ var max_foot_dist := 30
 var left_leg_stepper: Tween
 var right_leg_stepper: Tween
 
-var is_chasing := false :
-	set(chasing):
-		is_chasing = chasing
+enum movement {WAIT, WANDER, CHASE}
+
+var move_state := movement.WAIT :
+	set(new_state):
+		move_state = new_state
+
+		var is_chasing := move_state == movement.CHASE
 		speed = speed_normal if not is_chasing else speed_chase
 		neck_offset = neck_normal if not is_chasing else neck_chase
 		feet_offset = feet_normal if not is_chasing else feet_chase
@@ -74,19 +79,19 @@ func move_legs() -> void:
 			right_leg_stepper = get_tree().create_tween()
 			right_leg_stepper.tween_property(foot_right, "position", marker_right.global_position, step_time)
 
+
 func is_stepping(stepper: Tween) -> bool:
 	return is_instance_valid(stepper) and stepper.is_valid() and stepper.is_running()
 
 
-func animation_process() -> void:
-	$Icon.look_at(get_global_mouse_position())
-	$FeetPivot.look_at(get_global_mouse_position())
-	$NeckPivot.look_at(get_global_mouse_position())
+func look_direction(direction: Vector2) -> void:
+	$Body.look_at(direction)
+	$FeetPivot.look_at(direction)
+	$NeckPivot.look_at(direction)
 
 	var head_rot: int = abs(int($NeckPivot.rotation_degrees)) % 360
 	# flip the head when looking left
-	var direction := -1 if head_rot > 90 and head_rot < 270 else 1
-
+	#var direction := -1 if head_rot > 90 and head_rot < 270 else 1
 	var rotation_percentage: float = abs((head_rot - 180.0) / 180.0)
 	var mapped_percentage: float = remap(rotation_percentage, 0, 1, -1, 1)
 
@@ -106,6 +111,7 @@ func animation_process() -> void:
 func _ready():
 	foot_left.position = global_position
 	foot_right.position = global_position
+	_wander_target()
 
 	targetPlayer = Game.randomPlayer()
 
@@ -121,7 +127,6 @@ func _ready():
 	window.position = position - window.size / 2.0
 	#window.gui_disable_input = true
 	#DisplayServer.block_mm(window.get_window_id(), true)
-
 
 	windowCamera = Camera2D.new()
 	windowCamera.anchor_mode = Camera2D.ANCHOR_MODE_FIXED_TOP_LEFT
@@ -150,7 +155,9 @@ func _ready():
 
 
 func _process(delta):
-	is_chasing = Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
+	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		move_state = movement.CHASE
+		target = get_global_mouse_position()
 
 	delta *= Global.timescale
 	updateWindows()
@@ -160,22 +167,48 @@ func _process(delta):
 	if flashTimer <= 0.0:
 		pass
 
-	animation_process()
-
+	print(move_state)
+	if move_state == movement.WAIT:
+		var rota: float = abs($Body.rotation_degrees)
+		var direction := -1 if rota > 90 and rota < 270 else 1
+		look_direction(global_position + Vector2.RIGHT *800 * direction)
+	else:
+		look_direction(target)
 
 
 func _physics_process(delta):
 	delta *= Global.timescale
 	self.delta = delta
-
 	#updateWindows()
 
+
+var wander_wait_time = 0.0
+var target_threshold := 20
+
 func _integrate_forces(_state):
-	target = get_global_mouse_position()
-#
+	angular_velocity = 0
+	rotation = 0
 	var dist = position.distance_to(target)
+	wander_wait_time -= delta
+
+	# if we are out of screen, chase to get back in
+	if not Game.screenRectSafe.has_point(position):
+		move_state = movement.CHASE
+		target = get_global_mouse_position()
+
+	if move_state == movement.CHASE:
+		_chase_target()
+	elif dist < target_threshold:
+		if move_state == movement.WANDER:
+			_wait()
+		if wander_wait_time < 0:
+			_wander_target()
+
+	if dist < target_threshold:
+		linear_velocity = Vector2.ZERO
+		return
+
 	var lerpStrength = 8.0 * TorCurve.run(dist / 50.0, 1.5, 0.0, 1.0)
-	#var lerpStrength = 8.0 * min(1.0, dist / 50.0)
 	angle = angle.slerp(position.direction_to(target), lerpStrength * delta)
 
 	var vel = angle * speed
@@ -183,10 +216,25 @@ func _integrate_forces(_state):
 	knockbackVel = Utils.lexp(knockbackVel, Vector2.ZERO, 20.0 * delta)
 
 	linear_velocity = vel + knockbackVel
-	#linear_velocity = springVel
-
 	linear_velocity *= Global.timescale #* parent.drainSpeed
-	angular_velocity *= Global.timescale
+
+func _wander_target() -> void:
+	move_state = movement.WANDER
+	target = global_position
+	target += Vector2.from_angle(randf_range(0, TAU)) * randi_range(200, 400)
+	target = Utils.reflectInside(target, Game.screenRectSafe)
+	wander_wait_time = -1
+	printt("new wander", target)
+
+func _wait() -> void:
+	move_state = movement.WAIT
+	wander_wait_time = randi_range(2, 5)
+	printt("new wait", target, wander_wait_time)
+
+func _chase_target() -> void:
+	move_state = movement.CHASE
+	wander_wait_time = -1
+	printt("new chase", target)
 
 
 # TODO
