@@ -1,3 +1,4 @@
+class_name Goose
 extends RigidBody2D
 #Utils.spawn(preload("res://mods-unpacked/Ste-Goose/goose.tscn"), get_global_mouse_position(), game_area)
 
@@ -7,22 +8,22 @@ var args := {
 
 var targetPlayer:Node2D
 
-var coins := 8.0
+var coins := 42.0
 @onready var enemy = $Enemy
 
 @onready var collide_shape = $collideShape
 @onready var detect_shape = $Area2D/detectShape
 
 
-var window:Window
-var windowCamera:Camera2D
+var window: Window
+@onready var window_camera: Camera2D
+
 
 var target := Vector2.ZERO
-var angle := Vector2.ZERO
+var state_machine: StateMachine
+var look_angle := 0
 
 var knockbackVel := Vector2.ZERO
-
-var delta := 0.0
 
 var maxHealth := 100
 var flashTimer := 0.0
@@ -31,110 +32,122 @@ var frozen := false
 var drainSpeed := 1.0
 var _drainSpeed := 1.0
 
-#region Footsteps
-
-# todo test utils func mouseScreenPos() -> Vector2:
-	#return get_viewport().get_mouse_position()
-var speed_normal := 50
-var speed_chase := 180
-var speed := speed_normal
-
-var neck_normal := 24
-var neck_chase := 32
-var neck_offset := neck_normal
-
-var feet_normal := 10
-var feet_chase := 20
-var feet_offset := feet_normal
+#region animation
 
 var step_time := .1
-var max_foot_dist := 30
+var step_foot_dist := 30
+var max_foot_dist := 60
 var left_leg_stepper: Tween
 var right_leg_stepper: Tween
 
-enum movement {WAIT, WANDER, CHASE}
+@onready var foot_left := %Left/Foot
+@onready var marker_left := %Left
+@onready var foot_right := %Right/Foot
+@onready var marker_right := %Right
 
-var move_state := movement.WAIT :
-	set(new_state):
-		move_state = new_state
+func move_feet() -> void:
+	if foot_left.position.distance_to(marker_left.global_position) >= max_foot_dist:
+		step_left(step_time/2)
+		return
+	elif foot_right.position.distance_to(marker_right.global_position) >= max_foot_dist:
+		step_right(step_time/2)
+		return
 
-		var is_chasing := move_state == movement.CHASE
-		speed = speed_normal if not is_chasing else speed_chase
-		neck_offset = neck_normal if not is_chasing else neck_chase
-		feet_offset = feet_normal if not is_chasing else feet_chase
-
-@onready var foot_left := $FeetPivot/Offset/Left/Foot
-@onready var marker_left := $FeetPivot/Offset/Left
-@onready var foot_right := $FeetPivot/Offset/Right/Foot
-@onready var marker_right := $FeetPivot/Offset/Right
-
-func move_legs() -> void:
 	if not is_stepping(right_leg_stepper):
-		if foot_left.position.distance_to(marker_left.global_position) >= max_foot_dist:
-			left_leg_stepper = get_tree().create_tween()
-			left_leg_stepper.tween_property(foot_left, "position", marker_left.global_position, step_time)
+		if foot_left.position.distance_to(marker_left.global_position) >= step_foot_dist:
+			step_left(step_time)
 
 	if not is_stepping(left_leg_stepper):
-		if foot_right.position.distance_to(marker_right.global_position) >= max_foot_dist:
-			right_leg_stepper = get_tree().create_tween()
-			right_leg_stepper.tween_property(foot_right, "position", marker_right.global_position, step_time)
+		if foot_right.position.distance_to(marker_right.global_position) >= step_foot_dist:
+			step_right(step_time)
 
+func return_feet() -> void:
+	if not is_stepping(right_leg_stepper):
+		if foot_left.position.distance_to(marker_left.global_position) >= 0.1:
+			step_left(step_time/2)
+
+	if not is_stepping(left_leg_stepper):
+		if foot_right.position.distance_to(marker_right.global_position) >= 0.1:
+			step_right(step_time/2)
 
 func is_stepping(stepper: Tween) -> bool:
 	return is_instance_valid(stepper) and stepper.is_valid() and stepper.is_running()
 
+func step_left(step_time: float) -> void:
+	left_leg_stepper = get_tree().create_tween()
+	left_leg_stepper.tween_property(foot_left, "position", marker_left.global_position, step_time)
 
-func look_direction(direction: Vector2) -> void:
-	$Body.look_at(direction)
-	$FeetPivot.look_at(direction)
-	$NeckPivot.look_at(direction)
+func step_right(step_time: float) -> void:
+	right_leg_stepper = get_tree().create_tween()
+	right_leg_stepper.tween_property(foot_right, "position", marker_right.global_position, step_time)
 
-	var head_rot: int = abs(int($NeckPivot.rotation_degrees)) % 360
-	# flip the head when looking left
-	#var direction := -1 if head_rot > 90 and head_rot < 270 else 1
+var rotation_speed := 6.0
+func look_direction(direction: Vector2, delta: float) -> void:
+	var body := %Body as Node2D
+	var from_angle := body.rotation
+	var to_angle := (body).global_transform.looking_at(direction).get_rotation()
+	var lerped := lerp_angle(from_angle, to_angle, delta * rotation_speed)
+	body.rotation = lerped
+	%ClippedBodyPivot.rotation = lerped
+	%FeetPivot.rotation = lerped
+	%NeckPivot.rotation = lerped
+	%Eyes.rotation = lerped
+	look_angle = int(body.rotation_degrees) % 360
+
+	%ClippedBody.global_position = %Body.global_position
+
+	var head_rot: int = abs(int(%NeckPivot.rotation_degrees)) % 360
 	var rotation_percentage: float = abs((head_rot - 180.0) / 180.0)
-	var mapped_percentage: float = remap(rotation_percentage, 0, 1, -1, 1)
+	var x_mapped_percentage: float = abs(rotation_percentage - 0.5)
+	%Beak.position.x = 10 + (x_mapped_percentage) * 4
 
-	$NeckPivot/HeadPivot.position.y = mapped_percentage * -10
-	$NeckPivot/HeadPivot/Eyes.position.y = mapped_percentage * -4
-	$NeckPivot/HeadPivot/Beak.position.y = mapped_percentage * 3
+	move_feet()
 
-	$NeckPivot/HeadPivot.position.x = neck_offset
-	$FeetPivot/Offset.position.x = feet_offset
-	#if $NeckPivot.rotation_degrees > 90:
+func shift_head(offset: float) -> void:
+#	var duration := .3
+	#var tw := get_tree().create_tween()
+	#tw.set_parallel(true)
+	#tw.tween_property(%HeadPivot, "position:x", %HeadPivot.position.x + offset, duration)
+	#tw.tween_property(%Eyes/EyeLeft, "position:x", %Eyes/EyeLeft.position.x + offset, duration)
+	#tw.tween_property(%Eyes/EyeRight, "position:x", %Eyes/EyeRight.position.x + offset, duration)
+	#tw.tween_property(%ClippedBodyPivot/HeadClipMask, "position:x", %ClippedBodyPivot/HeadClipMask.position.x + offset, duration)
+	%HeadPivot.position.x += offset
+	%Eyes/EyeLeft.position.x += offset
+	%Eyes/EyeRight.position.x += offset
+	%ClippedBodyPivot/HeadClipMask.position.x += offset
 
-	move_legs()
+	%ClippedBody.global_position = %Body.global_position
+
+func shift_feet(offset: float) -> void:
+#	var duration := .3
+#	var tw := get_tree().create_tween()
+#	tw.tween_property(%FeetOffset, "position:x", %FeetOffset.position.x + offset *4, duration)
+	%FeetOffset.position.x += offset *4
+
+func is_target_reached(target) -> bool:
+	return %Beak.global_position.distance_to(target) < 10.0 or global_position.distance_to(target) < 10.0
 
 #endregion
 
-
 func _ready():
-	foot_left.position = global_position
-	foot_right.position = global_position
-	_wander_target()
-
 	targetPlayer = Game.randomPlayer()
-
-	maxHealth = 120 + lerp(0.0, 32.0, Stats.stats.totalBossesKilled / 6.0)
-	#maxHealth = min(maxHealth, 56)
-
-	enemy.health = maxHealth
+	enemy.invincible = true
 
 	window = Window.new()
 	Game.registerWindow(window, "goose")
 	window.size = Vector2(200, 200)
-
 	window.position = position - window.size / 2.0
-	#window.gui_disable_input = true
-	#DisplayServer.block_mm(window.get_window_id(), true)
 
-	windowCamera = Camera2D.new()
-	windowCamera.anchor_mode = Camera2D.ANCHOR_MODE_FIXED_TOP_LEFT
-	windowCamera.position = window.position
-	#window.unfocusable = true
+	window_camera = Camera2D.new()
+	window_camera.anchor_mode = Camera2D.ANCHOR_MODE_FIXED_TOP_LEFT
+	window_camera.position = window.position
+	window.unfocusable = true
 	window.unresizable = true
 	window.always_on_top = Global.options.alwaysOnTop
-	window.add_child(windowCamera)
+	window.add_child(window_camera)
+
+	move_feet()
+	state_machine = StateMachine.new(self)
 
 	window.close_requested.connect(func():
 		if Global.detach >= 4:
@@ -145,9 +158,6 @@ func _ready():
 	detect_shape.disabled = true
 
 	Utils.processLater(self, 1 + 160 * args.index, func():
-		var tween = get_tree().create_tween()
-		tween.set_ease(Tween.EASE_OUT)
-		tween.set_trans(Tween.TRANS_CUBIC)
 		add_child(window)
 		collide_shape.disabled = false
 		detect_shape.disabled = false
@@ -155,114 +165,213 @@ func _ready():
 
 
 func _process(delta):
-	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
-		move_state = movement.CHASE
-		target = get_global_mouse_position()
-
 	delta *= Global.timescale
-	updateWindows()
-
-	flashTimer -= 2.0 * delta
-	var modulateVal = 1.0 + 20.0 * (TorCurve.run(flashTimer, 2, 1, 1))
-	if flashTimer <= 0.0:
-		pass
-
-	print(move_state)
-	if move_state == movement.WAIT:
-		var rota: float = abs($Body.rotation_degrees)
-		var direction := -1 if rota > 90 and rota < 270 else 1
-		look_direction(global_position + Vector2.RIGHT *800 * direction)
-	else:
-		look_direction(target)
+	state_machine.update(delta)
+	update_windows()
 
 
-func _physics_process(delta):
-	delta *= Global.timescale
-	self.delta = delta
-	#updateWindows()
-
-
-var wander_wait_time = 0.0
-var target_threshold := 20
-
-func _integrate_forces(_state):
-	angular_velocity = 0
-	rotation = 0
-	var dist = position.distance_to(target)
-	wander_wait_time -= delta
-
-	# if we are out of screen, chase to get back in
-	if not Game.screenRectSafe.has_point(position):
-		move_state = movement.CHASE
-		target = get_global_mouse_position()
-
-	if move_state == movement.CHASE:
-		_chase_target()
-	elif dist < target_threshold:
-		if move_state == movement.WANDER:
-			_wait()
-		if wander_wait_time < 0:
-			_wander_target()
-
-	if dist < target_threshold:
-		linear_velocity = Vector2.ZERO
-		return
-
-	var lerpStrength = 8.0 * TorCurve.run(dist / 50.0, 1.5, 0.0, 1.0)
-	angle = angle.slerp(position.direction_to(target), lerpStrength * delta)
-
-	var vel = angle * speed
-
-	knockbackVel = Utils.lexp(knockbackVel, Vector2.ZERO, 20.0 * delta)
-
-	linear_velocity = vel + knockbackVel
-	linear_velocity *= Global.timescale #* parent.drainSpeed
-
-func _wander_target() -> void:
-	move_state = movement.WANDER
-	target = global_position
-	target += Vector2.from_angle(randf_range(0, TAU)) * randi_range(200, 400)
-	target = Utils.reflectInside(target, Game.screenRectSafe)
-	wander_wait_time = -1
-	printt("new wander", target)
-
-func _wait() -> void:
-	move_state = movement.WAIT
-	wander_wait_time = randi_range(2, 5)
-	printt("new wait", target, wander_wait_time)
-
-func _chase_target() -> void:
-	move_state = movement.CHASE
-	wander_wait_time = -1
-	printt("new chase", target)
-
-
-# TODO
-func newTarget():
-	targetPlayer = Game.randomPlayer()
-
-
-func updateWindows():
+func update_windows():
 	if(window.mode & Window.MODE_MINIMIZED > 0):
 		window.mode &= ~Window.MODE_MINIMIZED
 
 	window.set_meta("health", (enemy.health + enemy.buff) / (maxHealth + enemy.buff))
 	Game.setWindowRect(window, Rect2(position - window.size / 2.0, window.size), true, true)
-	windowCamera.position = window.position
+	window_camera.position = window.position
+
+
+func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
+	state_machine.control_puppet()
 
 
 
-func kill(soft := false):
-	if not soft:
-		Audio.play(preload("res://src/sounds/bossDie.ogg"), 0.8, 1.2)
-	for i in 4:
-		Utils.spawn(preload("res://src/particle/enemy_pop/enemy_pop.tscn"), position, get_parent(), {color = Color(0.1, 0.769, 1)})
+# all of the following are internal classes to profit from named classes,
+# without having to inject classes into the cache at runtime
+class StateMachine:
+	var puppet: Goose
+	var current_state: State
+	var states: Array[State] = []
+	var state_transitions: Dictionary = {}  # New dictionary for state transitions
 
-	Audio.playRandom([preload("res://src/sounds/slime1.ogg"), preload("res://src/sounds/slime2.ogg"), preload("res://src/sounds/slime3.ogg")], 0.8, 1.2)
+	func _init(new_puppet: Goose) -> void:
+		puppet = new_puppet
+		var idle_state = StateIdle.new(puppet)
+		var wander_state = StateWander.new(puppet)
+		var chase_state = StateChase.new(puppet)
+		var steal_state = StateStealCursor.new(puppet)
 
-	queue_free()
+		add_state(chase_state)
+		add_state(idle_state)
+		add_state(wander_state)
+		add_state(steal_state)
 
-func knockback(from:Vector2, power := 1.0, reset := false):
-	var new = power*600.0 * (position - from).normalized()
-	knockbackVel = new if reset else knockbackVel + new
-	enemy.flash()
+		state_transitions[idle_state] = [wander_state, chase_state]
+		state_transitions[wander_state] = [idle_state]
+		state_transitions[chase_state] = [steal_state]
+		state_transitions[steal_state] = [idle_state]
+
+		change_state(states.front())
+
+	func add_state(state: State) -> void:
+		states.append(state)
+		state.state_finished.connect(choose_state)
+
+	func choose_state() -> void:
+		var new_state: State = state_transitions[current_state].pick_random()
+		change_state(new_state)
+
+	func change_state(new_state: State) -> void:
+		if not current_state == null:
+			current_state.exit()
+		current_state = new_state
+		current_state.enter()
+
+	func update(delta: float) -> void:
+		current_state.process(delta)
+
+	func control_puppet() -> void:
+		if not current_state.target:
+			puppet.linear_velocity = Vector2.ZERO
+			return
+
+		var target: Vector2 = current_state.target
+		if puppet.is_target_reached(target):
+			return
+
+		var direction := target - puppet.global_position
+		direction = direction.normalized()
+		puppet.linear_velocity = direction * current_state.speed
+
+
+class State:
+	signal state_finished
+
+	var name := "Base State"
+	var puppet: Goose
+	var target: Vector2
+	var speed := 0.0
+	var shift_head := 0
+	var shift_feet := 0
+
+	func _init(puppet: Goose) -> void:
+		self.puppet = puppet
+
+	func enter() -> void:
+		prints("Entering", name)
+		puppet.shift_head(shift_head)
+		puppet.shift_feet(shift_feet)
+
+	func exit() -> void:
+		prints("Exiting", name)
+		puppet.shift_head(-shift_head)
+		puppet.shift_feet(-shift_feet)
+
+	func process(delta: float) -> void:
+		pass
+
+	func control_puppet() -> void:
+		pass
+
+	func random_target() -> Vector2:
+		var area := Game.screenRectDeco.grow(-100)
+		return Utils.randRectPoint(area)
+
+	func mouse_target() -> Vector2:
+		return puppet.get_global_mouse_position()
+
+
+## stand still.
+## ends after a random amount of time.
+class StateIdle:
+	extends State
+	var idle_time := 0.0
+
+	func _init(puppet: Goose) -> void:
+		super(puppet)
+		name = "Idle"
+
+	func enter() -> void:
+		super()
+		idle_time = randf_range(1, 3)
+
+	func process(delta: float) -> void:
+		idle_time -= delta
+		if idle_time <= 0:
+			state_finished.emit()
+			return
+
+		puppet.return_feet()
+
+
+## chase the target.
+## ends when the puppet is close to the target.
+class StateChase:
+	extends State
+
+	func _init(puppet: Goose) -> void:
+		super(puppet)
+		name = "Chase"
+		shift_head = 6
+		shift_feet = 22
+		speed = 180
+
+	func enter() -> void:
+		super()
+		target = random_target()
+
+	func process(delta: float) -> void:
+		target = mouse_target()
+		if puppet.is_target_reached(target):
+			state_finished.emit()
+			return
+
+		puppet.look_direction(target, delta)
+
+
+## wander around the by choosing a random direction to move in.
+## ends when the puppet is close to the target.
+class StateWander:
+	extends State
+	var wander_target: Vector2
+
+	func _init(puppet: Goose) -> void:
+		super(puppet)
+		name = "Wander"
+		shift_head = 4
+		shift_feet = 12
+		speed = 50
+
+	func enter() -> void:
+		super()
+		target = random_target()
+
+	func process(delta: float) -> void:
+		if puppet.is_target_reached(target):
+			state_finished.emit()
+			return
+
+		puppet.look_direction(target, delta)
+
+
+## steals the mouse cursor and moves it around.
+## ends when the puppet is close to the target.
+class StateStealCursor:
+	extends StateWander
+
+	func _init(puppet: Goose) -> void:
+		super(puppet)
+		name = "Steal"
+		shift_head = 6
+		shift_feet = 22
+		speed = 120
+
+	func process(delta: float) -> void:
+		super(delta)
+
+		var beak_position: Vector2 = puppet.get_node("%Beak").global_position - puppet.global_position
+		var offset := puppet.window_camera.get_screen_center_position()
+		DisplayServer.warp_mouse(offset + beak_position)
+
+
+
+
+

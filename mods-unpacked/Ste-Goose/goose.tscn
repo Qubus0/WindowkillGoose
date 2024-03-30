@@ -1,9 +1,14 @@
-[gd_scene load_steps=7 format=3 uid="uid://cc2671as7xdlu"]
+[gd_scene load_steps=12 format=3 uid="uid://cc2671as7xdlu"]
 
-[ext_resource type="Script" path="res://mods-unpacked/Ste-Goose/goose.gd" id="1_n7kmw"]
-[ext_resource type="Texture2D" uid="uid://bt5v5lkjvuetb" path="res://src/icon.svg" id="2_p4opg"]
-[ext_resource type="Script" path="res://src/enemy/enemy.gd" id="2_v7may"]
-[ext_resource type="Texture2D" uid="uid://d17d3fga2oexf" path="res://src/2px.png" id="4_bueh6"]
+[ext_resource type="Texture2D" uid="uid://dys2bpqt2fxdg" path="res://mods-unpacked/Ste-Goose/sprites/shadow.png" id="2_5n312"]
+[ext_resource type="Script" path="res://src/enemy/enemy.gd" id="2_8a28b"]
+[ext_resource type="Texture2D" uid="uid://ccx26ueflqgpg" path="res://mods-unpacked/Ste-Goose/sprites/body.png" id="2_p4opg"]
+[ext_resource type="Script" path="res://mods-unpacked/Ste-Goose/goose.gd" id="2_v7may"]
+[ext_resource type="Texture2D" uid="uid://qgcr0d27ngj3" path="res://mods-unpacked/Ste-Goose/sprites/head.png" id="3_fa1fy"]
+[ext_resource type="Texture2D" uid="uid://bo85osk37xoio" path="res://mods-unpacked/Ste-Goose/sprites/beak.png" id="4_86uhu"]
+[ext_resource type="Texture2D" uid="uid://cnfte2j54a2t" path="res://mods-unpacked/Ste-Goose/sprites/foot.png" id="4_bueh6"]
+[ext_resource type="Texture2D" uid="uid://bq3qbn5ctnok8" path="res://mods-unpacked/Ste-Goose/sprites/head_clip.png" id="4_juniw"]
+[ext_resource type="Texture2D" uid="uid://dn571wkqlktbp" path="res://mods-unpacked/Ste-Goose/sprites/eye.png" id="5_27460"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_xje5l"]
 radius = 19.0
@@ -12,12 +17,16 @@ radius = 19.0
 radius = 48.0
 
 [node name="Goose" type="RigidBody2D"]
+z_index = 1
+collision_layer = 128
+collision_mask = 8192
+gravity_scale = 0.0
 can_sleep = false
-script = ExtResource("1_n7kmw")
+lock_rotation = true
+script = ExtResource("2_v7may")
 
 [node name="Enemy" type="Node" parent="."]
-script = ExtResource("2_v7may")
-health = 10.0
+script = ExtResource("2_8a28b")
 
 [node name="collideShape" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_xje5l")
@@ -30,56 +39,107 @@ collision_mask = 48
 [node name="detectShape" type="CollisionShape2D" parent="Area2D"]
 shape = SubResource("CircleShape2D_uomjb")
 
-[node name="Body" type="Sprite2D" parent="."]
-position = Vector2(0, -7)
-scale = Vector2(0.375, 0.21875)
-texture = ExtResource("2_p4opg")
+[node name="Puppet" type="Node2D" parent="."]
 
-[node name="NeckPivot" type="Marker2D" parent="."]
-position = Vector2(0, -7)
+[node name="FeetPivot" type="Marker2D" parent="Puppet"]
+unique_name_in_owner = true
+position = Vector2(0, 11)
 
-[node name="HeadPivot" type="Marker2D" parent="NeckPivot"]
-position = Vector2(24, -10)
+[node name="Shadow" type="Sprite2D" parent="Puppet/FeetPivot"]
+z_index = -1
+position = Vector2(-0.00716786, 2)
+rotation = 0.000358393
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("2_5n312")
 
-[node name="Head" type="Sprite2D" parent="NeckPivot/HeadPivot"]
-scale = Vector2(0.1875, 0.125)
-texture = ExtResource("2_p4opg")
+[node name="FeetPosition" type="Marker2D" parent="Puppet/FeetPivot"]
+position = Vector2(-0.00645107, 2.86102e-06)
+rotation = 0.000358393
+scale = Vector2(0.25, 0.25)
 
-[node name="Beak" type="Sprite2D" parent="NeckPivot/HeadPivot"]
-position = Vector2(11, 3)
-scale = Vector2(0.109375, 0.0703126)
-texture = ExtResource("2_p4opg")
-
-[node name="Eyes" type="Marker2D" parent="NeckPivot/HeadPivot"]
-position = Vector2(4, -4)
-
-[node name="Eye" type="Sprite2D" parent="NeckPivot/HeadPivot/Eyes"]
-position = Vector2(0, -3)
-texture = ExtResource("4_bueh6")
-
-[node name="Eye2" type="Sprite2D" parent="NeckPivot/HeadPivot/Eyes"]
-position = Vector2(0, 3)
-texture = ExtResource("4_bueh6")
-
-[node name="FeetPivot" type="Marker2D" parent="."]
-position = Vector2(0, 15)
+[node name="FeetOffset" type="Marker2D" parent="Puppet/FeetPivot/FeetPosition"]
+unique_name_in_owner = true
 rotation = -0.000358393
+scale = Vector2(4, 4)
 
-[node name="Offset" type="Marker2D" parent="FeetPivot"]
-position = Vector2(10, 0)
+[node name="Left" type="Marker2D" parent="Puppet/FeetPivot/FeetPosition/FeetOffset"]
+unique_name_in_owner = true
+position = Vector2(0.000357628, -6)
 
-[node name="Left" type="Marker2D" parent="FeetPivot/Offset"]
+[node name="Foot" type="Sprite2D" parent="Puppet/FeetPivot/FeetPosition/FeetOffset/Left"]
+self_modulate = Color(1, 0.647059, 0.00784314, 1)
+top_level = true
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("4_bueh6")
+
+[node name="Right" type="Marker2D" parent="Puppet/FeetPivot/FeetPosition/FeetOffset"]
+unique_name_in_owner = true
+position = Vector2(-0.000358582, 6)
+
+[node name="Foot" type="Sprite2D" parent="Puppet/FeetPivot/FeetPosition/FeetOffset/Right"]
+self_modulate = Color(1, 0.647059, 0.00784314, 1)
+top_level = true
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("4_bueh6")
+
+[node name="Body" type="Sprite2D" parent="Puppet"]
+unique_name_in_owner = true
+visible = false
+self_modulate = Color(0.894531, 0, 0, 1)
 position = Vector2(0, -5)
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("2_p4opg")
 
-[node name="Foot" type="Sprite2D" parent="FeetPivot/Offset/Left"]
+[node name="ClippedBodyPivot" type="Marker2D" parent="Puppet"]
+unique_name_in_owner = true
+position = Vector2(0, -15)
+
+[node name="HeadClipMask" type="Sprite2D" parent="Puppet/ClippedBodyPivot"]
+clip_children = 1
+position = Vector2(21, 0)
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("4_juniw")
+
+[node name="ClippedBody" type="Sprite2D" parent="Puppet/ClippedBodyPivot/HeadClipMask"]
+unique_name_in_owner = true
+position = Vector2(-84, 40)
+texture = ExtResource("2_p4opg")
+
+[node name="NeckPivot" type="Marker2D" parent="Puppet"]
+unique_name_in_owner = true
+position = Vector2(0, -15)
+
+[node name="HeadPivot" type="Marker2D" parent="Puppet/NeckPivot"]
+unique_name_in_owner = true
+position = Vector2(21, 0)
+
+[node name="Head" type="Sprite2D" parent="Puppet/NeckPivot/HeadPivot"]
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("3_fa1fy")
+
+[node name="Beak" type="Sprite2D" parent="Puppet/NeckPivot/HeadPivot"]
+unique_name_in_owner = true
+self_modulate = Color(1, 0.647059, 0.00784314, 1)
+position = Vector2(12, 0)
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("4_86uhu")
+
+[node name="Eyes" type="Marker2D" parent="Puppet"]
+unique_name_in_owner = true
+position = Vector2(0, -17)
+
+[node name="EyeLeft" type="Sprite2D" parent="Puppet/Eyes"]
+position = Vector2(25, -4)
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("5_27460")
+
+[node name="EyeRight" type="Sprite2D" parent="Puppet/Eyes"]
+position = Vector2(25, 4)
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("5_27460")
+
+[node name="DebugMarker" type="Sprite2D" parent="."]
+self_modulate = Color(0.566667, 0, 1, 1)
 top_level = true
-scale = Vector2(2, 2)
-texture = ExtResource("4_bueh6")
-
-[node name="Right" type="Marker2D" parent="FeetPivot/Offset"]
-position = Vector2(0, 5)
-
-[node name="Foot" type="Sprite2D" parent="FeetPivot/Offset/Right"]
-top_level = true
-scale = Vector2(2, 2)
-texture = ExtResource("4_bueh6")
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("5_27460")
