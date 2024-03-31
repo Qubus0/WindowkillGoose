@@ -229,17 +229,7 @@ class StateMachine:
 		current_state.process(delta)
 
 	func control_puppet() -> void:
-		if not current_state.target:
-			puppet.linear_velocity = Vector2.ZERO
-			return
-
-		var target: Vector2 = current_state.target
-		if puppet.is_target_reached(target):
-			return
-
-		var direction := target - puppet.global_position
-		direction = direction.normalized()
-		puppet.linear_velocity = direction * current_state.speed
+		current_state.control_puppet()
 
 
 class State:
@@ -247,8 +237,6 @@ class State:
 
 	var name := "Base State"
 	var puppet: Goose
-	var target: Vector2
-	var speed := 0.0
 	var shift_head := 0
 	var shift_feet := 0
 
@@ -270,14 +258,6 @@ class State:
 
 	func control_puppet() -> void:
 		pass
-
-	func random_target() -> Vector2:
-		var area := Game.screenRectDeco.grow(-100)
-		return Utils.randRectPoint(area)
-
-	func mouse_target() -> Vector2:
-		return puppet.get_global_mouse_position()
-
 
 ## stand still.
 ## ends after a random amount of time.
@@ -301,11 +281,35 @@ class StateIdle:
 
 		puppet.return_feet()
 
+	func control_puppet() -> void:
+		puppet.linear_velocity = Vector2.ZERO
+
+
+class TargetedState extends State:
+	var target: Vector2
+	var speed := 0.0
+
+	func enter() -> void:
+		super()
+		update_target()
+
+	func update_target() -> void:
+		pass
+
+	func control_puppet() -> void:
+		if not target or puppet.is_target_reached(target):
+			puppet.linear_velocity = Vector2.ZERO
+			return
+
+		var direction := target - puppet.global_position
+		direction = direction.normalized()
+		puppet.linear_velocity = direction * speed
+
 
 ## chase the target.
 ## ends when the puppet is close to the target.
 class StateChase:
-	extends State
+	extends TargetedState
 
 	func _init(puppet: Goose) -> void:
 		super(puppet)
@@ -314,23 +318,22 @@ class StateChase:
 		shift_feet = 22
 		speed = 180
 
-	func enter() -> void:
-		super()
-		target = random_target()
-
 	func process(delta: float) -> void:
-		target = mouse_target()
+		update_target()
 		if puppet.is_target_reached(target):
 			state_finished.emit()
 			return
 
 		puppet.look_direction(target, delta)
 
+	func update_target():
+		target = puppet.get_global_mouse_position()
+
 
 ## wander around the by choosing a random direction to move in.
 ## ends when the puppet is close to the target.
 class StateWander:
-	extends State
+	extends TargetedState
 	var wander_target: Vector2
 
 	func _init(puppet: Goose) -> void:
@@ -340,16 +343,16 @@ class StateWander:
 		shift_feet = 12
 		speed = 50
 
-	func enter() -> void:
-		super()
-		target = random_target()
-
 	func process(delta: float) -> void:
 		if puppet.is_target_reached(target):
 			state_finished.emit()
 			return
 
 		puppet.look_direction(target, delta)
+
+	func update_target() -> void:
+		var area := Game.screenRectDeco.grow(-100)
+		target = Utils.randRectPoint(area)
 
 
 ## steals the mouse cursor and moves it around.
