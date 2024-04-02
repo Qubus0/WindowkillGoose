@@ -174,7 +174,6 @@ func update_windows():
 	if(window.mode & Window.MODE_MINIMIZED > 0):
 		window.mode &= ~Window.MODE_MINIMIZED
 
-	window.set_meta("health", (enemy.health + enemy.buff) / (maxHealth + enemy.buff))
 	Game.setWindowRect(window, Rect2(position - window.size / 2.0, window.size), true, true)
 	window_camera.position = window.position
 
@@ -194,34 +193,44 @@ class StateMachine:
 
 	func _init(new_puppet: Goose) -> void:
 		puppet = new_puppet
-		var idle_state = StateIdle.new(puppet)
-		var wander_state = StateWander.new(puppet)
-		var chase_state = StateChase.new(puppet)
-		var steal_state = StateStealCursor.new(puppet)
+		var idle         = StateIdle.new(puppet)
+		var wander       = StateWander.new(puppet)
+		var chase_cursor = StateChaseCursor.new(puppet)
+		var steal_cursor = StateStealCursor.new(puppet)
+		var chase_window = StateChaseWindow.new(puppet)
+		var steal_window = StateStealWindow.new(puppet)
 
-		add_state(chase_state)
-		add_state(idle_state)
-		add_state(wander_state)
-		add_state(steal_state)
-
-		state_transitions[idle_state] = [wander_state, chase_state]
-		state_transitions[wander_state] = [idle_state]
-		state_transitions[chase_state] = [steal_state]
-		state_transitions[steal_state] = [idle_state]
+		add_state(idle, [
+			#wander,
+			#chase_cursor,
+			chase_window,
+		])
+		add_state(wander, [idle])
+		add_state(chase_cursor, [steal_cursor])
+		add_state(steal_cursor, [idle, wander])
+		add_state(chase_window, [steal_window])
+		add_state(steal_window, [idle, wander])
 
 		change_state(states.front())
 
-	func add_state(state: State) -> void:
-		states.append(state)
+	func add_state(state: State, transitions := []) -> void:
 		state.state_finished.connect(choose_state)
+		state.state_canceled.connect(cancel_state)
+		state_transitions[state] = transitions
+		states.append(state)
 
 	func choose_state() -> void:
 		var new_state: State = state_transitions[current_state].pick_random()
 		change_state(new_state)
 
+	func cancel_state() -> void:
+		change_state(states.front())
+
 	func change_state(new_state: State) -> void:
 		if not current_state == null:
 			current_state.exit()
+
+		new_state.setup(current_state)
 		current_state = new_state
 		current_state.enter()
 
@@ -234,14 +243,19 @@ class StateMachine:
 
 class State:
 	signal state_finished
+	signal state_canceled
 
 	var name := "Base State"
+	var sequential_state: State
 	var puppet: Goose
 	var shift_head := 0
 	var shift_feet := 0
 
 	func _init(puppet: Goose) -> void:
 		self.puppet = puppet
+
+	func setup(previous_state: State) -> void:
+		pass
 
 	func enter() -> void:
 		prints("Entering", name)
@@ -258,6 +272,10 @@ class State:
 
 	func control_puppet() -> void:
 		pass
+
+	func update_sequential_state() -> void:
+		pass
+
 
 ## stand still.
 ## ends after a random amount of time.
@@ -326,8 +344,37 @@ class StateChase:
 
 		puppet.look_direction(target, delta)
 
+
+## chase the mouse cursor.
+class StateChaseCursor:
+	extends StateChase
+
 	func update_target():
 		target = puppet.get_global_mouse_position()
+
+
+class StateChaseWindow:
+	extends StateChase
+	var target_window: Window
+
+	func enter() -> void:
+		super()
+		var possible_windows: Array[Window] = []
+		possible_windows.append_array(Global.main.drainWindows)
+		possible_windows.append_array(Global.main.peerWindows)
+
+		if not possible_windows:
+			state_canceled.emit()
+			return
+
+		target_window = possible_windows.pick_random()
+
+	func update_target():
+		if not target_window:
+			state_canceled.emit()
+			return
+
+		target = Vector2(target_window.position.x + target_window.size.x /2, target_window.position.y -10)
 
 
 ## wander around the by choosing a random direction to move in.
@@ -375,6 +422,36 @@ class StateStealCursor:
 		DisplayServer.warp_mouse(offset + beak_position)
 
 
+class StateStealWindow:
+	extends StateWander
+	var target_window: Window
+	var from_position: Vector2
 
+	func _init(puppet: Goose) -> void:
+		super(puppet)
+		shift_head = 6
+		shift_feet = -22
+
+	func setup(previous_state: State) -> void:
+		super(previous_state)
+		target_window = previous_state.target_window
+		if not target_window:
+			state_canceled.emit()
+
+	func enter() -> void:
+		super()
+		from_position = puppet.global_position
+
+	func process(delta: float) -> void:
+		if puppet.is_target_reached(target):
+			state_finished.emit()
+			return
+
+		puppet.look_direction(from_position, delta)
+
+		var beak_position: Vector2 = puppet.get_node("%Beak").global_position - puppet.global_position
+		var offset := puppet.window_camera.get_screen_center_position()
+		offset -= Vector2(target_window.size.x /2 , -10)
+		target_window.position = Vector2(offset + beak_position)
 
 
