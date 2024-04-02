@@ -182,6 +182,13 @@ func _integrate_forces(state: PhysicsDirectBodyState2D) -> void:
 	state_machine.control_puppet()
 
 
+func honk() -> void:
+	$SoundsHonk.get_children().pick_random().playing = true
+	#$SoundsHonk.wait_time = randf_range(5, 15)
+
+func chomp() -> void:
+	$SoundsChomp.get_children().pick_random().playing = true
+
 
 # all of the following are internal classes to profit from named classes,
 # without having to inject classes into the cache at runtime
@@ -201,8 +208,8 @@ class StateMachine:
 		var steal_window = StateStealWindow.new(puppet)
 
 		add_state(idle, [
-			#wander,
-			#chase_cursor,
+			wander,
+			chase_cursor,
 			chase_window,
 		])
 		add_state(wander, [idle])
@@ -258,12 +265,13 @@ class State:
 		pass
 
 	func enter() -> void:
-		prints("Entering", name)
+		#prints("Entering", name)
 		puppet.shift_head(shift_head)
 		puppet.shift_feet(shift_feet)
+		enter_sound()
 
 	func exit() -> void:
-		prints("Exiting", name)
+		#prints("Exiting", name)
 		puppet.shift_head(-shift_head)
 		puppet.shift_feet(-shift_feet)
 
@@ -275,6 +283,10 @@ class State:
 
 	func update_sequential_state() -> void:
 		pass
+
+	func enter_sound() -> void:
+		puppet.honk()
+
 
 
 ## stand still.
@@ -414,6 +426,9 @@ class StateStealCursor:
 		shift_feet = 22
 		speed = 120
 
+	func enter_sound() -> void:
+		puppet.chomp()
+
 	func process(delta: float) -> void:
 		super(delta)
 
@@ -441,6 +456,9 @@ class StateStealWindow:
 	func enter() -> void:
 		super()
 		from_position = puppet.global_position
+
+	func enter_sound() -> void:
+		puppet.chomp()
 
 	func process(delta: float) -> void:
 		if puppet.is_target_reached(target):

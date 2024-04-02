@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://cc2671as7xdlu"]
+[gd_scene load_steps=19 format=3 uid="uid://cc2671as7xdlu"]
 
 [ext_resource type="Texture2D" uid="uid://dys2bpqt2fxdg" path="res://mods-unpacked/Ste-Goose/sprites/shadow.png" id="2_5n312"]
 [ext_resource type="Script" path="res://src/enemy/enemy.gd" id="2_8a28b"]
@@ -9,6 +9,13 @@
 [ext_resource type="Texture2D" uid="uid://cnfte2j54a2t" path="res://mods-unpacked/Ste-Goose/sprites/foot.png" id="4_bueh6"]
 [ext_resource type="Texture2D" uid="uid://bq3qbn5ctnok8" path="res://mods-unpacked/Ste-Goose/sprites/head_clip.png" id="4_juniw"]
 [ext_resource type="Texture2D" uid="uid://dn571wkqlktbp" path="res://mods-unpacked/Ste-Goose/sprites/eye.png" id="5_27460"]
+[ext_resource type="AudioStream" uid="uid://5a6ts4aomu0m" path="res://mods-unpacked/Ste-Goose/sounds/honk1.mp3" id="10_o1dme"]
+[ext_resource type="AudioStream" uid="uid://b5bwo2mwt1vl0" path="res://mods-unpacked/Ste-Goose/sounds/honk2.mp3" id="11_ufa7m"]
+[ext_resource type="AudioStream" uid="uid://ly4yi48divoa" path="res://mods-unpacked/Ste-Goose/sounds/honk3.mp3" id="12_l231w"]
+[ext_resource type="AudioStream" uid="uid://iq5ne3qh0ncj" path="res://mods-unpacked/Ste-Goose/sounds/honk4.mp3" id="13_2lly7"]
+[ext_resource type="AudioStream" uid="uid://e8hle35eqivq" path="res://mods-unpacked/Ste-Goose/sounds/chomp1.mp3" id="14_oscgy"]
+[ext_resource type="AudioStream" uid="uid://d05jexnah6se8" path="res://mods-unpacked/Ste-Goose/sounds/chomp2.mp3" id="15_dlroq"]
+[ext_resource type="AudioStream" uid="uid://b6ni2hla4okhj" path="res://mods-unpacked/Ste-Goose/sounds/laugh1.mp3" id="16_jhq8g"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_xje5l"]
 radius = 19.0
@@ -138,8 +145,42 @@ position = Vector2(25, 4)
 scale = Vector2(0.25, 0.25)
 texture = ExtResource("5_27460")
 
-[node name="DebugMarker" type="Sprite2D" parent="."]
-self_modulate = Color(0.566667, 0, 1, 1)
-top_level = true
-scale = Vector2(0.25, 0.25)
-texture = ExtResource("5_27460")
+[node name="SoundsHonk" type="Timer" parent="."]
+
+[node name="1" type="AudioStreamPlayer" parent="SoundsHonk"]
+stream = ExtResource("10_o1dme")
+bus = &"sfx"
+
+[node name="2" type="AudioStreamPlayer" parent="SoundsHonk"]
+stream = ExtResource("11_ufa7m")
+bus = &"sfx"
+
+[node name="3" type="AudioStreamPlayer" parent="SoundsHonk"]
+stream = ExtResource("12_l231w")
+bus = &"sfx"
+
+[node name="4" type="AudioStreamPlayer" parent="SoundsHonk"]
+stream = ExtResource("13_2lly7")
+bus = &"sfx"
+
+[node name="SoundsChomp" type="Node" parent="."]
+
+[node name="1" type="AudioStreamPlayer" parent="SoundsChomp"]
+stream = ExtResource("14_oscgy")
+volume_db = -10.0
+pitch_scale = 1.34
+bus = &"sfx"
+
+[node name="2" type="AudioStreamPlayer" parent="SoundsChomp"]
+stream = ExtResource("15_dlroq")
+volume_db = -5.0
+pitch_scale = 1.38
+bus = &"sfx"
+
+[node name="SoundsLaugh" type="Node" parent="."]
+
+[node name="1" type="AudioStreamPlayer" parent="SoundsLaugh"]
+stream = ExtResource("16_jhq8g")
+bus = &"sfx"
+
+[connection signal="timeout" from="SoundsHonk" to="." method="honk"]
