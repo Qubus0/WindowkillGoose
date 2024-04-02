@@ -265,7 +265,7 @@ class State:
 		pass
 
 	func enter() -> void:
-		#prints("Entering", name)
+#		prints("Entering", name)
 		puppet.shift_head(shift_head)
 		puppet.shift_feet(shift_feet)
 		enter_sound()
@@ -360,6 +360,12 @@ class StateChase:
 ## chase the mouse cursor.
 class StateChaseCursor:
 	extends StateChase
+
+	func enter() -> void:
+		super()
+		puppet.get_tree().create_timer(randf_range(10, 15)).timeout.connect(
+			func(): state_canceled.emit()
+		)
 
 	func update_target():
 		target = puppet.get_global_mouse_position()
