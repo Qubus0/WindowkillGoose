@@ -3,6 +3,7 @@
 Windowgoose is a mod for the game [Windowkill](https://store.steampowered.com/app/2726450/Windowkill/) by Torcado.  
 It is designed to be used with the [Godot Mod Loader](https://github.com/GodotModding/godot-mod-loader) integrated into the game.
 
+It is a reference to the original [Desktop Goose](https://samperson.itch.io/desktop-goose) by samperson.
 
 ## Contributing
 All contributions are welcome. I will review your PRs and push the updates to the [Steam Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3211533337).
